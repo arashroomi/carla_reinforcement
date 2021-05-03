@@ -153,13 +153,13 @@ class CollisionSensor(object):
 
 
 # ==============================================================================
-# -- LaneInvasionSensor --------------------------------------------------------
+# -- Sensors --------------------------------------------------------
 # ==============================================================================
 class LidarSensor(object):
     def __init__(self, x ,y, z, parent_actor, hud,semantic,lidar_noise):
         self.lidar_image_pixels = 84
         self.pixel2meter = 2
-        lidar_max_distance = self.lidar_image_pixels / (self.pixel2meter * 2)
+        lidar_max_distance = self.lidar_image_pixels / (self.pixel2meter)
         self.sensor = None
         self.points= None
         self.surface_lidar = None
@@ -169,14 +169,21 @@ class LidarSensor(object):
         self._parent = parent_actor
         self.hud = hud
         world = self._parent.get_world()
+        self.FRONT_FOV = 2 * (math.pi) / 3
+        self.agent_pixel_pose_Y = int(self.lidar_image_pixels/2)
+        self.agent_pixel_pose_X =  4
+        self.agent_pixel_pose = [self.agent_pixel_pose_X, self.agent_pixel_pose_Y]
 
         lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast_semantic')
-        lidar_bp.set_attribute('points_per_second', '100000')
-        lidar_bp.set_attribute('rotation_frequency', '20')
+        lidar_bp.set_attribute('points_per_second', '2000000')
+        lidar_bp.set_attribute('rotation_frequency', '80')
         lidar_bp.set_attribute('lower_fov','-50')
-        lidar_bp.set_attribute('upper_fov', '30')
+        lidar_bp.set_attribute('upper_fov', '-2')
         lidar_bp.set_attribute('channels', str(64))
         lidar_bp.set_attribute('range', str(lidar_max_distance-.5))
+
+
+
 
 
         rad_deg = np.pi / float(180)
@@ -196,66 +203,6 @@ class LidarSensor(object):
 
         self.lidar.listen(lambda image: LidarSensor.semantic_lidar_callback(weak_self, image))
 
-    def process_data(self,bird_array):
-
-        if self.points is not None:
-            lidar_data = np.array(self.points)
-            # print(lidar_data.shape)
-
-            lidar_data[:, :2] *= self.pixel2meter
-            lidar_data[:, :2] += (0.5 * self.lidar_image_pixels, 0.5 * self.lidar_image_pixels)
-            lidar_data[:, :1] = np.fabs(lidar_data[:, :1])  # pylint: disable=E1111
-            # lidar_data = lidar_data.astype(np.int32)
-
-            lidar_data = np.reshape(lidar_data, (-1, 3))
-
-            lidar_img_size = (self.lidar_image_pixels, self.lidar_image_pixels, 3)
-            lidar_img = np.zeros((lidar_img_size), dtype=int)
-            depth = np.zeros((self.lidar_image_pixels, self.lidar_image_pixels), dtype=float)
-            # print(np.shape(tuple((labels == 10).T)))
-            # lidar_data[(labels != 10),:] = 0
-
-            max_z = 4
-            # print(np.shape(lidar_data))
-
-            for i in range((np.shape(lidar_data))[0] - 1):
-                x = lidar_data[i, 0]
-                y = lidar_data[i, 1]
-                z = lidar_data[i, 2]
-                # print(z)
-                lidar_img[int(x), int(y), 1] = 60
-                # print(z)
-
-                if 0.7 < z + self.lidar_z < 1.8:
-                    lidar_img[int(x), int(y), 0] = 155*bird_array[x, y, 3] * 255
-                    self.depth[int(x), int(y)] = z
-                    if self.blocking_pointclouds is not None:
-                        self.blocking_pointclouds = np.append(self.blocking_pointclouds, np.array([[x, y]]), 0)
-
-                    else:
-                        self.blocking_pointclouds = np.array([[x, y]])
-
-
-            '''if self.blocking_pointclouds is not None:
-                #clusters = hcluster.linkage(self.blocking_pointclouds, 'single')
-
-                #clusters = hcluster.fclusterdata(self.blocking_pointclouds, thresh)
-                clusters = KMeans(n_clusters=2, random_state=0, max_iter=10).fit(self.blocking_pointclouds).labels_
-                n_clusters = np.nanmax(clusters)
-                print('clusters',n_clusters)
-                for i in range((np.shape(clusters))[0]-1):
-                    place = clusters[i]
-                    x = self.blocking_pointclouds[i, 0]
-                    y = self.blocking_pointclouds[i, 1]
-                    #z = self.blocking_pointclouds[i, 2]
-                    #print(z)
-                    lidar_img[int(x),int(y),1] = place*255/n_clusters
-                    #print(z)'''
-
-            # lidar_img[tuple(lidar_data.T)] = (0, 0, 200)
-            # lidar_img[tuple((labels == 10).T)] = (255, 0, 0)
-            # lidar_img[]
-            return lidar_img
 
     def render(self, display,bird_array):
         if self.points is not None:
@@ -263,76 +210,39 @@ class LidarSensor(object):
             # print(lidar_data.shape)
 
             lidar_data[:, :2] *= self.pixel2meter
-            lidar_data[:, :2] += (0.5 * self.lidar_image_pixels, 0.5 * self.lidar_image_pixels)
+            lidar_data[:, :2] += (0, 0.5*self.lidar_image_pixels)
             lidar_data[:, :1] = np.fabs(lidar_data[:, :1])  # pylint: disable=E1111
             # lidar_data = lidar_data.astype(np.int32)
 
             lidar_data = np.reshape(lidar_data, (-1, 3))
+            mask = (lidar_data[:, 0] >= 0) * (lidar_data[:, 1] >= 0)*(lidar_data[:, 0] < 84)*(lidar_data[:, 1] < 84)
+            lidar_data = lidar_data[mask,:]
+            print(np.shape(mask))
+            print(np.shape(lidar_data))
+
+            lidar_height_size = (self.lidar_image_pixels, self.lidar_image_pixels)
+            lidar_height = np.zeros((lidar_height_size), dtype=int)
 
             lidar_img_size = (self.lidar_image_pixels, self.lidar_image_pixels, 3)
             lidar_img = np.zeros((lidar_img_size), dtype=int)
             depth = np.zeros((self.lidar_image_pixels, self.lidar_image_pixels), dtype=float)
-            # print(np.shape(tuple((labels == 10).T)))
-            # lidar_data[(labels != 10),:] = 0
 
-            max_z = 4
-            # print(np.shape(lidar_data))
+            x = np.array(lidar_data[:, 0], dtype=int)
+            y = np.array(lidar_data[:, 1], dtype=int)
+            z = lidar_data[:, 2] + self.lidar_z
+            lidar_img[x,y,0] = np.array(z<20, dtype=int)*255
+            lidar_height[x,y] = np.array(z, dtype=int)
 
-            for i in range((np.shape(lidar_data))[0] - 1):
-                x = lidar_data[i, 0]
-                y = lidar_data[i, 1]
-                z = lidar_data[i, 2]
-                # print(z)
-                lidar_img[int(x), int(y), 1] = 100
-                # print(z)
 
-                if 0.6 < z + self.lidar_z < 1.8:
-                    if bird_array is not None:
-                        lidar_img[int(x), int(y), 0] = bird_array[int(x), int(y), 3] * 180
-
-                    #self.depth[int(x), int(y)] = z
-                    if self.blocking_pointclouds is not None:
-                        self.blocking_pointclouds = np.append(self.blocking_pointclouds, np.array([[x, y]]), 0)
-
-                    else:
-                        self.blocking_pointclouds = np.array([[x, y]])
-
-            '''for i in range((np.shape(lidar_data))[0]-1):
-                x = lidar_data[i, 0]
-                y = lidar_data[i, 1]
-                z = lidar_data[i, 2]
-                #print(z)
-                lidar_img[int(x),int(y),1] = 50
-                #print(z)
-                
-                if 0.7<z+self.lidar_z<1.8:
-                    lidar_img[int(x),int(y), 0] = 255
-                    self.depth[int(x),int(y)] = z
-                    if self.blocking_pointclouds is not None:
-                        self.blocking_pointclouds = np.append(self.blocking_pointclouds, np.array([[x,y]]), 0)
-                    else:
-                        self.blocking_pointclouds = np.array([[x,y]])'''
-
-            '''if self.blocking_pointclouds is not None:
-                #clusters = hcluster.linkage(self.blocking_pointclouds, 'single')
-
-                #clusters = hcluster.fclusterdata(self.blocking_pointclouds, thresh)
-                clusters = KMeans(n_clusters=2, random_state=0, max_iter=10).fit(self.blocking_pointclouds).labels_
-                n_clusters = np.nanmax(clusters)
-                print('clusters',n_clusters)
-                for i in range((np.shape(clusters))[0]-1):
-                    place = clusters[i]
-                    x = self.blocking_pointclouds[i, 0]
-                    y = self.blocking_pointclouds[i, 1]
-                    #z = self.blocking_pointclouds[i, 2]
-                    #print(z)
-                    lidar_img[int(x),int(y),1] = place*255/n_clusters
-                    #print(z)'''
-
-            #lidar_img[tuple(lidar_data.T)] = (0, 0, 200)
-            #lidar_img[tuple((labels == 10).T)] = (255, 0, 0)
-            #lidar_img[]
-            #lidar_img = self.process_data(bird_array)
+            self.mask_shadow, uncertainty, d = shadow_mask.view_field(lidar_height, .6, self.agent_pixel_pose, 90)
+            n, m = np.shape(self.mask_shadow)
+            x, y = np.ogrid[0:n, 0:m]
+            fov_mask = (((self.agent_pixel_pose_Y - y) > ((self.agent_pixel_pose_X - x) * math.tan(self.FRONT_FOV / 2))) & (
+                    (self.agent_pixel_pose_Y - y) < (-(self.agent_pixel_pose_X - x) * math.tan(self.FRONT_FOV / 2))))
+            shadow = np.zeros((self.lidar_image_pixels, self.lidar_image_pixels))
+            visibility_matrix = fov_mask & self.mask_shadow
+            shadow[visibility_matrix] = 1
+            lidar_img[:, :, 1] = shadow * 255
             self.lidar_img = np.rot90(lidar_img,3)
             self.surface_lidar = pygame.surfarray.make_surface(self.lidar_img)
             self.surface_lidar = pygame.transform.scale(self.surface_lidar,
@@ -371,9 +281,6 @@ class LidarSensor(object):
         #labels = all_points[:,7]
 
         self.points = np.reshape(points, (int(points.shape[0] / 3), 3))
-
-
-
 
 
 
