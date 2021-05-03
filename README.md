@@ -1,4 +1,4 @@
 # carla_reinforcement
 
 - run CARLA
-$ python3  carla_main.py
+- $ python3  carla_main.py
