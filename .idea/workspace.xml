@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="687a9292-3dd8-4bcb-947a-ff38fc8c462e" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/env/carla_env/sensing.py" beforeDir="false" afterPath="$PROJECT_DIR$/env/carla_env/sensing.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/shadow_mask.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib/shadow_mask.py" afterDir="false" />
-    </list>
+    <list default="true" id="687a9292-3dd8-4bcb-947a-ff38fc8c462e" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
